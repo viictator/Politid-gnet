@@ -1,12 +1,31 @@
+import sys
+import io
+import os
+import json
+import time
+from datetime import date
+from dotenv import load_dotenv
+import google.generativeai as genai
 import undetected_chromedriver as uc
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from bs4 import BeautifulSoup
-from datetime import date
-import time
 
-# Global variabel til at holde de færdige data-objekter
+
+# Fiks for emoji/Unicode fejl på Windows terminal
+if sys.platform == "win32":
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+
+# Indlæs miljøvariabler fra .env filen
+load_dotenv()
+MY_API_KEY = os.getenv("API_KEY")
+
+genai.configure(api_key=MY_API_KEY)
+gemini_model = genai.GenerativeModel('gemini-2.5-flash-lite')
+
+
+
 final_reports = [] 
 
 def get_danish_date():
@@ -87,18 +106,86 @@ def scrape():
     
     return final_reports
 
-if __name__ == "__main__":
-    resultat = scrape()
-    
-    print("\n" + "="*30)
-    print(f"SCRAPING FÆRDIG: Indsamlet {len(resultat)} rapporter.")
-    print("="*30)
-
-    for r in resultat:
-        print(f"\nOverskrift: {r['titel']}")
-        print(f"Længde: {len(r['indhold'])} tegn.")
 
 # --- HER KAN VI IMPLEMENTERE GEMINI SENERE ---
 def getBestReport(reports_list):
-    """Her kan du sende reports_list til Gemini API'en"""
-    pass
+    """Bruger Gemini til at score alle rapporter og returnere dem samlet."""
+    if not reports_list:
+        return None
+
+    # Vi sender titler og resuméer ind for at spare på tokens/tid
+    oversigt = ""
+    for i, r in enumerate(reports_list):
+        oversigt += f"ID: {i}\nTitel: {r['titel']}\nResumé: {r['manchet']}\n\n"
+
+    prompt = f"""
+    Her er en liste over politiets døgnrapporter fra d. {DANISH_TODAY}.
+    Vurder hver enkelt rapport og giv den en nyhedsscore fra 1-10 (hvor 10 er højeste nyhedsværdi som f.eks. drab, store røverier eller usædvanlige hændelser).
+    
+    Data:
+    {oversigt}
+    
+    Svar KUN med et JSON-objekt der indeholder en liste kaldet 'analyseret_data'. 
+    Hvert element i listen skal indeholde:
+    - "index": (det ID jeg gav dig)
+    - "nyhedsscore": (tal fra 1-10)
+    - "begrundelse": (en kort dansk forklaring)
+
+    Format:
+    {{
+      "analyseret_data": [
+        {{"index": 0, "nyhedsscore": 8, "begrundelse": "..."}},
+        ...
+      ]
+    }}
+    """
+
+    try:
+        response = gemini_model.generate_content(prompt)
+        clean_text = response.text.replace("```json", "").replace("```", "").strip()
+        analysis_result = json.loads(clean_text)
+        
+        # Nu fletter vi Gemini's scores ind i dine originale data
+        scored_reports = []
+        for item in analysis_result["analyseret_data"]:
+            original_idx = item["index"]
+            original_report = reports_list[original_idx]
+            
+            # Tilføj Gemini's vurdering til rapport-objektet
+            original_report["nyhedsscore"] = item["nyhedsscore"]
+            original_report["begrundelse"] = item["begrundelse"]
+            original_report["index"] = item["index"]
+            
+            scored_reports.append(original_report)
+
+        # Sorter listen så den med højeste score ligger øverst
+        scored_reports.sort(key=lambda x: x["nyhedsscore"], reverse=True)
+        
+        return scored_reports
+
+    except Exception as e:
+        print(f"⚠️ Kunne ikke analysere med Gemini: {e}")
+        return None
+
+
+if __name__ == "__main__":
+    resultater = scrape()
+    
+    if resultater:
+        print(f"✅ Scraping færdig. {len(resultater)} rapporter klar til analyse.")
+        scannede_rapporter = getBestReport(resultater)
+        
+        if scannede_rapporter:
+            print("\n" + "="*60)
+            print(f"TOP NYHEDER FRA DØGNRAPPORTEN (Dato: {DANISH_TODAY})")
+            print("="*60)
+            
+            for i, r in enumerate(scannede_rapporter[:3]): # Vis de top 3
+                print(f"{i+1}. [{r['nyhedsscore']}/10] - {r['titel']}")
+                print(f"   Begrundelse: {r['begrundelse']}")
+                print(f"   Link: {r['url']}\n")
+                print(f"   Index: {r['index']}\n")
+
+                print(final_reports[r['index']])
+
+
