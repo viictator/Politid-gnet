@@ -1,6 +1,15 @@
 from google import genai
-from scraper.main import DANISH_TODAY, MODEL_NAME, client
+from scraper.main import DANISH_TODAY
 import json
+from dotenv import load_dotenv
+import os
+
+# Indlæs miljøvariabler fra .env filen
+load_dotenv()
+MY_API_KEY = os.getenv("API_KEY")
+
+client = genai.Client(api_key=MY_API_KEY)
+MODEL_NAME = 'gemini-2.5-flash-lite'
 
 def getBestReport(reports_list):
     """Bruger Gemini til at score alle rapporter og returnere dem samlet."""
