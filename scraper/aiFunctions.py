@@ -1,5 +1,5 @@
 from google import genai
-from main import DANISH_TODAY
+from scraper.scraper import DANISH_TODAY
 import json
 from dotenv import load_dotenv
 import os

@@ -1,8 +1,7 @@
 import sys
 import io
-from scraper.scraper import scrape
+from scraper.scraper import scrape, DANISH_TODAY
 from scraper.aiFunctions import getBestReport, createVideoPrompt
-from main import DANISH_TODAY
 
 # Fiks for emoji/Unicode fejl på Windows terminal
 if sys.platform == "win32":
