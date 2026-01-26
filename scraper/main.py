@@ -42,7 +42,7 @@ class PatchedChrome(uc.Chrome):
             pass
 
 BASE_URL = "https://politi.dk/doegnrapporter"
-DANISH_TODAY = "23. januar 2026" # Test dato
+DANISH_TODAY = get_danish_date()
 
 def scrape():
     global final_reports
@@ -171,6 +171,16 @@ def getBestReport(reports_list):
     except Exception as e:
         print(f"⚠️ Kunne ikke analysere med Gemini: {e}")
         return None
+    
+def createVideoPrompt(data: str):
+    """Opretter et prompt til video generering baseret på de bedste rapporter."""
+
+    
+    prompt = "Create a prompt for a ai generated video based on the following data:\n\n" \
+    f"{data}\n\n"
+
+    response = client.models.generate_content(model=MODEL_NAME, contents=prompt)
+    return response.text
 
 
 if __name__ == "__main__":
@@ -191,7 +201,25 @@ if __name__ == "__main__":
                 print(f"   Link: {r['url']}\n")
                 print(f"   Index: {r['index']}\n")
 
-                print(final_reports[r['index']])
+                #print(final_reports[r['index']])
                 print()
 
+            for i, r in enumerate(scannede_rapporter[:3]):
+                video_prompt = createVideoPrompt(r['indhold'])
+                print(f"🎬 Video prompt for nyhed {i+1} gemt")
+                # add video prompten til det respektive rapport objekt
+                scannede_rapporter[i]['video_prompt'] = video_prompt 
 
+            # Udskriv de top 3 rapporter med video prompts pænt format
+            print("\n" + "="*60)
+            print("TOP 3 RAPPORTER MED VIDEO PROMPTS")
+            print("="*60)
+            for i, r in enumerate(scannede_rapporter[:3]):
+                print(f"{i+1}. Titel: {r['titel']}")
+                print(f"   Video Prompt: {r['video_prompt']}\n")
+                print(f"   orginalIndex: {r['index']}\n")
+                print()
+        else:
+            print("❌ Ingen rapporter blev scannet af Gemini.")
+    else:
+        print("❌ Ingen rapporter fundet for i dag.")
