@@ -5,7 +5,7 @@ import json
 import time
 from datetime import date
 from dotenv import load_dotenv
-import google.generativeai as genai
+from google import genai
 import undetected_chromedriver as uc
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
@@ -21,8 +21,8 @@ if sys.platform == "win32":
 load_dotenv()
 MY_API_KEY = os.getenv("API_KEY")
 
-genai.configure(api_key=MY_API_KEY)
-gemini_model = genai.GenerativeModel('gemini-2.5-flash-lite')
+client = genai.Client(api_key=MY_API_KEY)
+MODEL_NAME = 'gemini-2.5-flash-lite'
 
 
 
@@ -64,7 +64,7 @@ def scrape():
             if date_tag and DANISH_TODAY in " ".join(date_tag.get_text().split()):
                 link_tag = card.select_one("a.newsResultLink")
                 if link_tag:
-                    url = link_tag['href']
+                    url = str(link_tag['href'])
                     if not url.startswith("http"):
                         url = "https://politi.dk" + url
                     links_to_visit.append(url)
@@ -82,8 +82,10 @@ def scrape():
             article_section = report_soup.select_one("#mid-section-div")
             
             if article_section:
-                title = article_section.select_one("h1").get_text(strip=True) if article_section.select_one("h1") else "N/A"
-                manchet = article_section.select_one(".news-manchet").get_text(strip=True) if article_section.select_one(".news-manchet") else ""
+                h1_tag = article_section.select_one("h1")
+                title = h1_tag.get_text(strip=True) if h1_tag else "N/A"
+                manchet_tag = article_section.select_one(".news-manchet")
+                manchet = manchet_tag.get_text(strip=True) if manchet_tag else ""
                 content_div = article_section.select_one(".rich-text")
                 
                 full_text = content_div.get_text(separator='\n', strip=True) if content_div else ""
@@ -141,7 +143,10 @@ def getBestReport(reports_list):
     """
 
     try:
-        response = gemini_model.generate_content(prompt)
+        response = client.models.generate_content(model=MODEL_NAME, contents=prompt)
+        if response.text is None:
+            print("⚠️ Gemini returnerede ingen tekst")
+            return None
         clean_text = response.text.replace("```json", "").replace("```", "").strip()
         analysis_result = json.loads(clean_text)
         
@@ -187,5 +192,6 @@ if __name__ == "__main__":
                 print(f"   Index: {r['index']}\n")
 
                 print(final_reports[r['index']])
+                print()
 
 
