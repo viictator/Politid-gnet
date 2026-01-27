@@ -3,6 +3,7 @@ from utility.util import DANISH_TODAY
 import json
 from dotenv import load_dotenv
 import os
+import requests
 
 # Indlæs miljøvariabler fra .env filen
 load_dotenv()
@@ -10,6 +11,8 @@ MY_API_KEY = os.getenv("API_KEY")
 
 client = genai.Client(api_key=MY_API_KEY)
 MODEL_NAME = 'gemini-2.5-flash-lite'
+
+
 
 def getBestReport(reports_list):
     """Bruger Gemini til at score alle rapporter og returnere dem samlet."""
@@ -114,4 +117,73 @@ def createVoiceScript(reports_list):
         return response.text.strip()
     except Exception as e:
         print(f"⚠️ Script fejl: {e}")
+        return None
+    
+
+def generate_audio(voicescript, output_filename="voiceover.mp3"):
+    """
+    Sender scriptet til ElevenLabs og gemmer som MP3.
+    """
+    API_KEY = os.getenv("ELEVENLABS_API_KEY")
+    # Her kan du vælge en fed stemme. 'Erik' eller 'Charlie' er gode til dansk.
+    # Du finder VOICE_ID inde på deres hjemmeside.
+    VOICE_ID = "pNInz6obpgDQGcFmaJgB" # Eksempel på en stemme-ID
+
+    url = f"https://api.elevenlabs.io/v1/text-to-speech/{VOICE_ID}"
+    
+    headers = {
+        "Accept": "audio/mpeg",
+        "Content-Type": "application/json",
+        "xi-api-key": API_KEY
+    }
+
+    data = {
+        "text": voicescript,
+        "model_id": "eleven_multilingual_v2",
+        "voice_settings": {
+            "stability": 0.5,
+            "similarity_boost": 0.8
+        }
+    }
+
+    print(f"🔊 Sender script til ElevenLabs...")
+    response = requests.post(url, json=data, headers=headers)
+
+    if response.status_code == 200:
+        with open(output_filename, "wb") as f:
+            f.write(response.content)
+        print(f"✅ Lydfil gemt som {output_filename}")
+        return output_filename
+    else:
+        print(f"❌ ElevenLabs fejl: {response.text}")
+        return None
+    
+
+def get_pexels_video(query, filename):
+    """Søger efter en video på Pexels og downloader den første vertikale video."""
+    api_key = os.getenv("PEXELS_API_KEY")
+    url = f"https://api.pexels.com/videos/search?query={query}&per_page=5&orientation=portrait"
+    
+    headers = {"Authorization": api_key}
+    
+    try:
+        response = requests.get(url, headers=headers)
+        data = response.json()
+        
+        if data.get("videos"):
+            # Vi tager den første video og finder dens download link
+            video_files = data["videos"][0]["video_files"]
+            # Vi leder efter en fil med god kvalitet (HD)
+            download_url = video_files[0]["link"]
+            
+            print(f"📥 Downloader video for '{query}'...")
+            v_res = requests.get(download_url)
+            with open(filename, "wb") as f:
+                f.write(v_res.content)
+            return filename
+        else:
+            print(f"⚠️ Ingen video fundet for: {query}")
+            return None
+    except Exception as e:
+        print(f"❌ Pexels fejl: {e}")
         return None
