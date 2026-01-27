@@ -5,15 +5,11 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from bs4 import BeautifulSoup
+from utility.util import DANISH_TODAY
 
 
 final_reports = [] 
 
-def get_danish_date():
-    today = date.today()
-    months = ["januar", "februar", "marts", "april", "maj", "juni", 
-              "juli", "august", "september", "oktober", "november", "december"]
-    return f"{today.day}. {months[today.month-1]} {today.year}"
 
 class PatchedChrome(uc.Chrome):
     def __del__(self):
@@ -23,7 +19,6 @@ class PatchedChrome(uc.Chrome):
             pass
 
 BASE_URL = "https://politi.dk/doegnrapporter"
-DANISH_TODAY = get_danish_date()
 
 def scrape():
     global final_reports

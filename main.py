@@ -1,6 +1,7 @@
 import sys
 import io
-from scraper.scraper import scrape, DANISH_TODAY
+from scraper.reportscraper import scrape
+from utility.util import DANISH_TODAY
 from scraper.aiFunctions import getBestReport, createVideoPrompt
 
 # Fiks for emoji/Unicode fejl på Windows terminal

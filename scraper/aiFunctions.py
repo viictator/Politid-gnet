@@ -1,5 +1,5 @@
 from google import genai
-from scraper.scraper import DANISH_TODAY
+from utility.util import DANISH_TODAY
 import json
 from dotenv import load_dotenv
 import os
@@ -83,3 +83,35 @@ def createVideoPrompt(data: str):
     response = client.models.generate_content(model=MODEL_NAME, contents=prompt)
     return response.text
 
+
+def createVoiceScript(reports_list):
+    """
+    Omdanner op til 3 rapporter til ét samlet, sammenhængende voice-over script.
+    """
+    if not reports_list:
+        return "Ingen historier fundet."
+
+    news_context = ""
+    for i, r in enumerate(reports_list):
+        news_context += f"HISTORIE {i+1}:\nTITEL: {r['titel']}\nINDHOLD: {r['indhold']}\n\n"
+
+    prompt = f"""
+    Du er en True Crime-vært på TikTok. Lav ét sammenhængende script baseret på disse {len(reports_list)} politirapporter:
+    
+    {news_context}
+    
+    STRUKTUR PÅ SCRIPTET:
+    1. **HOOK**: En overordnet start der samler hændelserne (f.eks. "Politiets døgnrapport er landet, og der er især tre ting, du skal høre i dag...")
+    2. **BROER**: Lav glidende overgange mellem historierne (f.eks. "Men det var ikke det eneste... for i Randers skete der noget helt andet.")
+    3. **STIL**: Ingen politi-sprog. Gør det intenst, brug pauser (...) og hold et højt tempo.
+    4. **OUTRO**: En samlet afslutning (f.eks. "Hvilken af de her tre sager synes du er mest vanvittig? Skriv det i kommentarerne!")
+
+    SVAR KUN MED SELVE SCRIPTET.
+    """
+
+    try:
+        response = client.models.generate_content(model=MODEL_NAME, contents=prompt)
+        return response.text.strip()
+    except Exception as e:
+        print(f"⚠️ Script fejl: {e}")
+        return None
