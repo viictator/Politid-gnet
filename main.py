@@ -3,7 +3,7 @@ import io
 import os
 from scraper.reportscraper import scrape
 from utility.util import DANISH_TODAY
-from scraper.aiFunctions import getBestReport, createVideoPrompt, createVoiceScript, generate_audio
+from scraper.aiFunctions import getBestReport, createVideoPrompt, createVoiceScript, generate_audio, get_pexels_video
 
 # Fiks for emoji/Unicode fejl på Windows terminal
 if sys.platform == "win32":
@@ -77,11 +77,27 @@ if __name__ == "__main__":
             if audio_file:
                 print(f"\n✅ SUCCESS: Lydfil genereret: {audio_file}")
 
+
+            # TEST AF VIDEO DOWNLOAD
+            if resultater:
+                video_files = []
+                # Vi laver en hurtig liste af søgeord baseret på vores test-historier
+                # I en live-version ville vi bede Gemini om disse keywords
+                queries = ["police car chase", "chocolate candy"] 
+                
+                for i, q in enumerate(queries):
+                    file_path = f"video_clip_{i}.mp4"
+                    if not os.path.exists(file_path): # Spar båndbredde ved test
+                        get_pexels_video(q, file_path)
+                    video_files.append(file_path)
+                    
+                print(f"🎬 Vi har nu {len(video_files)} videoklip klar til sammensætning.")
+
             # 5. VIDEO PROMPTS (Kun hvis vi kører fuld pipeline)
-            if not USE_MOCK_SCRIPT:
+            """ if not USE_MOCK_SCRIPT:
                 for i, r in enumerate(scannede_rapporter[:3]):
                     r['video_prompt'] = createVideoPrompt(r['indhold'])
-                    print(f"🎬 Video prompt {i+1} klar.")
+                    print(f"🎬 Video prompt {i+1} klar.") """
         else:
             print("❌ Ingen rapporter blev scannet.")
     else:
