@@ -113,7 +113,7 @@ def createVoiceScript(reports_list):
     3. **STIL**: Ingen politi-sprog. Gør det intenst, brug pauser (...) og hold et højt tempo.
     4. **OUTRO**: En samlet afslutning (f.eks. "Hvilken af de her tre sager synes du er mest vanvittig? Skriv det i kommentarerne!")
 
-    SVAR KUN MED SELVE SCRIPTET.
+    SVAR KUN MED SELVE SCRIPTET. OG FORESTIL DIG AT DETTE LÆSES OP AF EN NYHEDSVÆRT PÅ TIKTOK, HVOR OPLÆSNINGEN MÅ MAX VARE 1 MINUT.
     """
 
     try:
