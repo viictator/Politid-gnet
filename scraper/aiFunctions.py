@@ -103,17 +103,21 @@ def createVoiceScript(reports_list):
         news_context += f"HISTORIE {i+1}:\nTITEL: {r['titel']}\nINDHOLD: {r['indhold']}\n\n"
 
     prompt = f"""
-    Du er en True Crime-vært på TikTok. Lav ét sammenhængende script baseret på disse {len(reports_list)} politirapporter:
+    Du er en Dansk True Crime-vært på TikTok. Lav ét sammenhængende script baseret på disse {len(reports_list)} politirapporter:
     
     {news_context}
     
+    REGLER:
+    1. Kun tag det mest spændende fra hver rapport.
+    2. Max 400 ord.
+
     STRUKTUR PÅ SCRIPTET:
     1. **HOOK**: En overordnet start der samler hændelserne (f.eks. "Politiets døgnrapport er landet, og der er især tre ting, du skal høre i dag...")
     2. **BROER**: Lav glidende overgange mellem historierne (f.eks. "Men det var ikke det eneste... for i Randers skete der noget helt andet.")
     3. **STIL**: Ingen politi-sprog. Gør det intenst, brug pauser (...) og hold et højt tempo.
     4. **OUTRO**: En samlet afslutning (f.eks. "Hvilken af de her tre sager synes du er mest vanvittig? Skriv det i kommentarerne!")
 
-    SVAR KUN MED SELVE SCRIPTET. OG FORESTIL DIG AT DETTE LÆSES OP AF EN NYHEDSVÆRT PÅ TIKTOK, HVOR OPLÆSNINGEN MÅ MAX VARE 1 MINUT.
+    SVAR KUN MED SELVE SCRIPTET SOM SKAL OPLÆSES (DER SKAL IKKE STÅ **HOOK**, **BROER**, ETC. I SELVE SCRIPTET).
     """
 
     try:
@@ -178,7 +182,8 @@ def get_video_search_params(audio_duration, final_script):
     Søgeordene skal:
     1. Være relevante for indholdet (f.eks. 'police car', 'handcuffs', 'night city', 'blue lights').
     2. Være varierede.
-    3. Returneres som en kommasepareret liste uden numre.
+    3. Være mørke, seriøse og krimiagtige.
+    4. Returneres som en kommasepareret liste uden numre.
     """
 
     # RETTELSE: Brug client.models.generate_content med MODEL_NAME
@@ -328,11 +333,19 @@ def compose_video_with_subs(video_files, audio_path, word_data, output_path="fin
     duration_per_clip = audio.duration / len(video_files)
     
     # 1. Forbered baggrundsvideoerne
+    # 1. Forbered baggrundsvideoerne
     for file in video_files:
-        clip = (VideoFileClip(file)
-                .subclipped(0, duration_per_clip)
-                .without_audio()
-                .resized(width=1080))
+        clip = VideoFileClip(file).without_audio().resized(width=1080)
+        
+        # SIKKERHEDSTJEK: Vi tager enten den ønskede længde 
+        # eller klipses fulde længde, hvis det er kortere.
+        safe_end_time = min(duration_per_clip, clip.duration)
+        
+        # Vi subclipper fra 0 til den sikre slut-tid
+        clip = clip.subclipped(0, safe_end_time)
+        
+        # Hvis klippet er for kort, kan vi evt. sætte det til at fryse på det sidste billede 
+        # eller bare lade det være. MoviePy concatenate skal nok håndtere det.
         video_clips.append(clip)
     
     bg_video = concatenate_videoclips(video_clips, method="compose")
