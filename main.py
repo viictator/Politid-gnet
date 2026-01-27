@@ -1,13 +1,20 @@
 import sys
 import io
 import os
+from moviepy import AudioFileClip
 from scraper.reportscraper import scrape
 from utility.util import DANISH_TODAY
-from scraper.aiFunctions import getBestReport, createVideoPrompt, createVoiceScript, generate_audio, get_multiple_pexels_videos, get_transcription_timestamps
+from scraper.aiFunctions import (
+    getBestReport, createVideoPrompt, createVoiceScript, 
+    generate_audio, get_multiple_pexels_videos, 
+    get_transcription_timestamps, compose_video_with_subs,
+    get_video_search_params
+)
 
 # Fiks for emoji/Unicode fejl på Windows terminal
 if sys.platform == "win32":
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+
 
 # --- TEST DATA ---
 TEST_REPORTS = [
@@ -38,6 +45,7 @@ if __name__ == "__main__":
     USE_MOCK_DATA = True    # True: Brug TEST_REPORTS | False: Kør browser-scraper
     USE_MOCK_SCRIPT = True  # True: Brug TEST_VOICE_SCRIPT | False: Spørg Gemini AI
     USE_MOCK_AUDIO = True   # True: Bruger test mp3 fil.
+    USE_MOCK_PEXELS = False # False: AI finder selv klip og downloader dem!
 
     # 1. INDHENT DATA
     if USE_MOCK_DATA:
@@ -49,69 +57,55 @@ if __name__ == "__main__":
     
     if resultater:
         # 2. ANALYSE (Gemini scoring)
-        # Vi kører kun analysen hvis vi ikke bruger mock data, 
-        # eller hvis vi specifikt vil se scoring på vores test data.
         scannede_rapporter = resultater if USE_MOCK_DATA else getBestReport(resultater)
         
         if scannede_rapporter:
             # 3. VOICE SCRIPT GENERERING
             if USE_MOCK_SCRIPT:
-                print("💡 Mode: Bruger TEST SCRIPT (Gemini Script deaktiveret)")
+                print("💡 Mode: Bruger TEST SCRIPT")
                 final_script = TEST_VOICE_SCRIPT
             else:
                 print("🎙️ Mode: Genererer nyt script via Gemini...")
                 final_script = createVoiceScript(scannede_rapporter[:3])
             
-            print("\n" + "="*60)
-            print("AKTUELT VOICE SCRIPT:")
-            print(final_script)
-            print("="*60)
-
             # 4. LYD GENERERING
             if USE_MOCK_AUDIO:
-                print("💡 Mode: ElevenLabs deaktiveret (Sparer penge/tokens)")
-                audio_file = "mock_audio.mp3" # Vi lader som om den er lavet
+                print("💡 Mode: Bruger 'mock_audio.mp3'")
+                audio_file = "mock_audio.mp3"
             else:
                 audio_file = generate_audio(final_script, "output_voiceover.mp3")
             
-            if audio_file:
-                print(f"\n✅ SUCCESS: Lydfil genereret: {audio_file}")
-
-
-            # TEST AF VIDEO DOWNLOAD
-            """ if resultater:
-                video_files = []
-                # Vi laver en hurtig liste af søgeord baseret på vores test-historier
-                # I en live-version ville vi bede Gemini om disse keywords
-                queries = ["police car chase", "chocolate candy"] 
+            if os.path.exists(audio_file):
+                print(f"✅ Lyd klar: {audio_file}")
                 
-                for i, q in enumerate(queries):
-                    file_path = f"video_clip_{i}.mp4"
-                    if not os.path.exists(file_path): # Spar båndbredde ved test
-                        get_multiple_pexels_videos(q, file_path)
-                    video_files.append(file_path)
+                # --- NY AUTOMATISK VIDEO LOGIK ---
+                
+                # A. Find varighed og få søgeord fra Gemini
+                audio_info = AudioFileClip(audio_file)
+                duration = audio_info.duration
+                
+                if USE_MOCK_PEXELS:
+                    print("💡 Mode: Bruger lokale test-klip")
+                    video_files = ["video_clip_0.mp4", "video_clip_1.mp4"]
+                else:
+                    print(f"🧠 Analyserer varighed ({duration:.2f}s) for at finde optimale søgeord...")
+                    search_terms = get_video_search_params(duration, final_script)
+                    print(f"🔎 AI foreslår klip: {', '.join(search_terms)}")
                     
-                print(f"🎬 Vi har nu {len(video_files)} videoklip klar til sammensætning.") """
-
+                    # B. Download klip fra Pexels baseret på AI-søgeord
+                    video_files = get_multiple_pexels_videos(search_terms)
+                
+                # 5. TRANSKRIPTERING & SAMMENSÆTNING
+                if video_files and all(os.path.exists(f) for f in video_files):
+                    print("📝 Whisper genererer tidsstempler...")
+                    timestamps = get_transcription_timestamps(audio_file, final_script)
+                    
+                    print("🎬 Sammensætter final video med undertekster...")
+                    output = compose_video_with_subs(video_files, audio_file, timestamps)
+                    print(f"\n🔥 BOOM! Videoen er klar: {output}")
+                else:
+                    print("❌ Fejl: Kunne ikke skaffe de nødvendige videofiler.")
             
-            #Test om transkribering af lydfil virker
-            if os.path.exists("mock_audio.mp3"):
-                timestamps = get_transcription_timestamps("mock_audio.mp3")
-                
-                # Print de første 5 ord for at tjekke
-                print("\n⏱️ Tidsstempler (første 5 ord):")
-                for w in timestamps[:5]:
-                    print(f"{w['word']}: {w['start']}s -> {w['end']}s")
-                    
-                # Gem den samlede varighed af videoen
-                total_duration = timestamps[-1]['end']
-                print(f"\n🎬 Videoens samlede længde: {total_duration:.2f} sekunder")
-
-            # 5. VIDEO PROMPTS (Kun hvis vi kører fuld pipeline)
-            """ if not USE_MOCK_SCRIPT:
-                for i, r in enumerate(scannede_rapporter[:3]):
-                    r['video_prompt'] = createVideoPrompt(r['indhold'])
-                    print(f"🎬 Video prompt {i+1} klar.") """
         else:
             print("❌ Ingen rapporter blev scannet.")
     else:
