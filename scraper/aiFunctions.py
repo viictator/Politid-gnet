@@ -4,6 +4,8 @@ import json
 from dotenv import load_dotenv
 import os
 import requests
+import whisper
+
 
 # Indlæs miljøvariabler fra .env filen
 load_dotenv()
@@ -159,31 +161,51 @@ def generate_audio(voicescript, output_filename="voiceover.mp3"):
         return None
     
 
-def get_pexels_video(query, filename):
-    """Søger efter en video på Pexels og downloader den første vertikale video."""
+def get_multiple_pexels_videos(query, count=3):
+    """Henter flere forskellige klip for at holde tempoet højt."""
     api_key = os.getenv("PEXELS_API_KEY")
-    url = f"https://api.pexels.com/videos/search?query={query}&per_page=5&orientation=portrait"
+    # Vi henter 'count' antal videoer
+    url = f"https://api.pexels.com/videos/search?query={query}&per_page={count}&orientation=portrait"
     
     headers = {"Authorization": api_key}
-    
+    video_paths = []
+
     try:
         response = requests.get(url, headers=headers)
         data = response.json()
         
-        if data.get("videos"):
-            # Vi tager den første video og finder dens download link
-            video_files = data["videos"][0]["video_files"]
-            # Vi leder efter en fil med god kvalitet (HD)
-            download_url = video_files[0]["link"]
+        for i, v in enumerate(data.get("videos", [])):
+            download_url = v["video_files"][0]["link"]
+            filename = f"clip_{query.replace(' ', '_')}_{i}.mp4"
             
-            print(f"📥 Downloader video for '{query}'...")
-            v_res = requests.get(download_url)
+            print(f"📥 Downloader del-klip {i+1} for '{query}'...")
+            res = requests.get(download_url)
             with open(filename, "wb") as f:
-                f.write(v_res.content)
-            return filename
-        else:
-            print(f"⚠️ Ingen video fundet for: {query}")
-            return None
+                f.write(res.content)
+            video_paths.append(filename)
+            
+        return video_paths
     except Exception as e:
-        print(f"❌ Pexels fejl: {e}")
-        return None
+        print(f"❌ Fejl ved hentning af flere klip: {e}")
+        return []
+    
+def get_transcription_timestamps(audio_path):
+    """
+    Analyserer lydfilen og returnerer tidsstempler for hvert ord.
+    """
+    print("🧠 Whisper analyserer lyden (det kan tage et øjeblik)...")
+    model = whisper.load_model("base") # 'base' er hurtig og god til dansk
+    
+    # Vi beder specifikt om ord-niveau tidsstempler
+    result = model.transcribe(audio_path, language="da", word_timestamps=True)
+    
+    word_data = []
+    for segment in result['segments']:
+        for word in segment['words']:
+            word_data.append({
+                "word": word['word'],
+                "start": word['start'],
+                "end": word['end']
+            })
+            
+    return word_data  

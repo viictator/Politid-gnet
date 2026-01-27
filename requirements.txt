@@ -4,3 +4,5 @@ undetected-chromedriver
 selenium
 beautifulsoup4
 elevenlabs
+openai-whisper
+ffmpeg

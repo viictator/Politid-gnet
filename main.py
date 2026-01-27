@@ -3,7 +3,7 @@ import io
 import os
 from scraper.reportscraper import scrape
 from utility.util import DANISH_TODAY
-from scraper.aiFunctions import getBestReport, createVideoPrompt, createVoiceScript, generate_audio, get_pexels_video
+from scraper.aiFunctions import getBestReport, createVideoPrompt, createVoiceScript, generate_audio, get_multiple_pexels_videos, get_transcription_timestamps
 
 # Fiks for emoji/Unicode fejl på Windows terminal
 if sys.platform == "win32":
@@ -79,7 +79,7 @@ if __name__ == "__main__":
 
 
             # TEST AF VIDEO DOWNLOAD
-            if resultater:
+            """ if resultater:
                 video_files = []
                 # Vi laver en hurtig liste af søgeord baseret på vores test-historier
                 # I en live-version ville vi bede Gemini om disse keywords
@@ -88,10 +88,24 @@ if __name__ == "__main__":
                 for i, q in enumerate(queries):
                     file_path = f"video_clip_{i}.mp4"
                     if not os.path.exists(file_path): # Spar båndbredde ved test
-                        get_pexels_video(q, file_path)
+                        get_multiple_pexels_videos(q, file_path)
                     video_files.append(file_path)
                     
-                print(f"🎬 Vi har nu {len(video_files)} videoklip klar til sammensætning.")
+                print(f"🎬 Vi har nu {len(video_files)} videoklip klar til sammensætning.") """
+
+            
+            #Test om transkribering af lydfil virker
+            if os.path.exists("mock_audio.mp3"):
+                timestamps = get_transcription_timestamps("mock_audio.mp3")
+                
+                # Print de første 5 ord for at tjekke
+                print("\n⏱️ Tidsstempler (første 5 ord):")
+                for w in timestamps[:5]:
+                    print(f"{w['word']}: {w['start']}s -> {w['end']}s")
+                    
+                # Gem den samlede varighed af videoen
+                total_duration = timestamps[-1]['end']
+                print(f"\n🎬 Videoens samlede længde: {total_duration:.2f} sekunder")
 
             # 5. VIDEO PROMPTS (Kun hvis vi kører fuld pipeline)
             """ if not USE_MOCK_SCRIPT:
