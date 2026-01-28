@@ -42,7 +42,7 @@ if __name__ == "__main__":
             for i, r in enumerate(scannede_rapporter[:3]):
                 print(f"{i+1}. Titel: {r['titel']}")
                 print(f"   Video Prompt: {r['video_prompt']}\n")
-                print(f"   orginalIndex: {r['index']}\n")
+                print(f"   originalIndex: {r['index']}\n")
                 print()
         else:
             print("❌ Ingen rapporter blev scannet af Gemini.")
