@@ -27,8 +27,17 @@ DANISH_TODAY = get_danish_date()
 
 def scrape():
     global final_reports
+    final_reports = []  # Reset list each run
+    
     options = uc.ChromeOptions()
-    driver = PatchedChrome(options=options)
+    options.add_argument('--headless=new')
+    options.add_argument('--disable-gpu')
+    options.add_argument('--no-sandbox')
+    options.add_argument('--disable-dev-shm-usage')
+    options.add_argument('--window-size=1920,1080')
+    
+    # Match ChromeDriver to your Chrome version
+    driver = PatchedChrome(options=options, version_main=144, headless=True)
     
     try:
         driver.get(BASE_URL)

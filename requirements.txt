@@ -3,3 +3,9 @@ google-genai
 undetected-chromedriver
 selenium
 beautifulsoup4
+replicate
+moviepy
+requests
+pillow
+openai-whisper
+torch

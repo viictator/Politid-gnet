@@ -18,3 +18,7 @@ env/
 
 # macOS
 .DS_Store
+
+# Output
+output/
+
